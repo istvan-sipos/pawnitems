@@ -21,10 +21,10 @@ RES     := pawnitems.res.o
 
 # pawnitems.dll sits next to DDDA.exe / dinput8.dll and is loaded via
 # ddda-dinput8's [main] loadLibrary= line.
-DDDA_DIR := /home/istvan/.wine/drive_c/DDDA
+DDDA_DIR := /home/istvan/.steam/steam/steamapps/common/DDDA
 DEPLOY   := $(DDDA_DIR)/$(TARGET)
 
-.PHONY: all clean deploy
+.PHONY: all clean deploy deploy-ini
 
 all: deploy
 
@@ -38,6 +38,13 @@ deploy: $(TARGET)
 	cp $(TARGET) "$(DEPLOY)"
 	@echo "== deploy hash check =="
 	@md5sum $(TARGET) "$(DEPLOY)"
+
+# Copy the default pawnitems.ini next to the DLL.  Separate from `deploy` so a
+# user-customised ini isn't clobbered on every build.  Run once on install,
+# or any time you want to reset the config to defaults.
+deploy-ini: $(SRC_DIR)/pawnitems.ini
+	cp $(SRC_DIR)/pawnitems.ini "$(DDDA_DIR)/pawnitems.ini"
+	@echo "== ini deployed to $(DDDA_DIR)/pawnitems.ini =="
 
 clean:
 	rm -f $(TARGET) $(RES)
