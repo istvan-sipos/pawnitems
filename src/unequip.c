@@ -1,8 +1,6 @@
 #include <windows.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdarg.h>
-#include <string.h>
+#include "patch.h"
 #include "unequip.h"
 
 /* --- game layout (GOG DDDA.exe, read off Ghidra) --------------------------
@@ -20,8 +18,6 @@
  *   +0x12  int16  quantity
  *   +0x20  uint32 flags
  */
-#define VA_IMAGEBASE         0x00400000u
-
 #define GUI_OFF_MEMBER       0x26E0
 #define GUI_OFF_ACTION_ITEM  0x2734
 #define GUI_OFF_REMOVED      0x2738
@@ -30,22 +26,6 @@
 #define ITEM_OFF_ID          0x10
 #define ITEM_OFF_QTY         0x12
 #define ITEM_OFF_FLAGS       0x20
-
-/* --- logging ------------------------------------------------------------- */
-
-static unequip_logfn g_log = NULL;
-
-static void logf_(const char *fmt, ...)
-{
-    if (!g_log) return;
-    char buf[512];
-    va_list ap;
-    va_start(ap, fmt);
-    _vsnprintf(buf, sizeof(buf) - 1, fmt, ap);
-    va_end(ap);
-    buf[sizeof(buf) - 1] = 0;
-    g_log(buf);
-}
 
 static int read_i32(const void *p, int32_t *out)
 {
@@ -57,10 +37,10 @@ static int read_i32(const void *p, int32_t *out)
 static void log_item(const char *prefix, int slot, const uint8_t *item)
 {
     if (!item || IsBadReadPtr(item, ITEM_OFF_FLAGS + 4)) {
-        logf_("%s slot=%d item=%p (unreadable)", prefix, slot, (void*)item);
+        patch_logf("%s slot=%d item=%p (unreadable)", prefix, slot, (void*)item);
         return;
     }
-    logf_("%s slot=%d item=%p id=%d qty=%d flags=0x%08X", prefix, slot,
+    patch_logf("%s slot=%d item=%p id=%d qty=%d flags=0x%08X", prefix, slot,
           (void*)item,
           *(const int16_t*)(item + ITEM_OFF_ID),
           *(const int16_t*)(item + ITEM_OFF_QTY),
@@ -105,7 +85,7 @@ static void __cdecl on_send_away(const uint8_t *gui, int idx)
     }
     if (idx < 2 && n == 0) return;   /* nothing interesting to report */
 
-    logf_("menu close: party index %d, %d removed item(s)%s",
+    patch_logf("menu close: party index %d, %d removed item(s)%s",
           idx, n, idx >= 2 ? " -> kept (send-away skipped)" : "");
     for (int i = 0; i < GUI_REMOVED_N; i++) {
         int32_t p = 0;
@@ -165,7 +145,7 @@ static void __cdecl on_prompt(const uint8_t *gui, int idx)
     if (idx < 2) return;
     int32_t p = 0;
     read_i32(gui + GUI_OFF_ACTION_ITEM, &p);
-    logf_("equip action on party index %d: send-away prompt skipped", idx);
+    patch_logf("equip action on party index %d: send-away prompt skipped", idx);
     if (p) log_item("  action", -1, (const uint8_t*)(uintptr_t)p);
 }
 
@@ -187,85 +167,27 @@ static void prompt_shim(void)
  * Install
  * ============================================================================ */
 
-static void log_bytes(const char *label, const uint8_t *p, size_t n)
+int unequip_install(const struct unequip_opts *opts, patch_logfn log)
 {
-    char hex[3 * 32 + 1];
-    size_t k = 0;
-    if (n > 32) n = 32;
-    if (IsBadReadPtr(p, n)) {
-        logf_("  %s @ %p: unreadable", label, (void*)p);
-        return;
-    }
-    for (size_t i = 0; i < n; i++)
-        k += (size_t)_snprintf(hex + k, sizeof(hex) - k, "%02X ", p[i]);
-    hex[k ? k - 1 : 0] = 0;
-    logf_("  %s @ %p: %s", label, (void*)p, hex);
-}
-
-/* Replace the 6-byte JZ rel32 at sig+patch_off with JMP rel32 + NOP. */
-static int install_jmp(const char *label, uint8_t *imgbase,
-                       uint32_t sig_va, const uint8_t *sig, size_t sig_n,
-                       size_t patch_off, uint32_t resume_va,
-                       void **resume_out, const void *shim)
-{
-    uint8_t *site = imgbase + (sig_va - VA_IMAGEBASE);
-
-    if (IsBadReadPtr(site, sig_n) || memcmp(site, sig, sig_n) != 0) {
-        logf_("%s: signature mismatch, not patched (not the GOG build?)",
-              label);
-        log_bytes("expected", sig, sig_n);
-        log_bytes("actual  ", site, sig_n);
-        return 0;
-    }
-
-    *resume_out = imgbase + (resume_va - VA_IMAGEBASE);
-
-    uint8_t *p = site + patch_off;
-    DWORD oldp = 0;
-    if (!VirtualProtect(p, 6, PAGE_EXECUTE_READWRITE, &oldp)) {
-        logf_("%s: VirtualProtect failed (err %lu)", label, GetLastError());
-        return 0;
-    }
-    p[0] = 0xE9;
-    *(int32_t*)(p + 1) = (int32_t)((const uint8_t*)shim - (p + 5));
-    p[5] = 0x90;
-    VirtualProtect(p, 6, oldp, &oldp);
-    FlushInstructionCache(GetCurrentProcess(), p, 6);
-
-    logf_("%s: patched at %p (shim=%p resume=%p)",
-          label, (void*)p, shim, *resume_out);
-    return 1;
-}
-
-int unequip_install(const struct unequip_opts *opts, unequip_logfn log)
-{
-    g_log = log;
-
-    uint8_t *imgbase = (uint8_t*)GetModuleHandleA(NULL);
-    if (!imgbase) {
-        logf_("unequip: GetModuleHandle(exe) failed");
-        return 0;
-    }
-
+    patch_set_log(log);
     int ok = 1;
+
     if (opts->keep_items) {
-        ok &= install_jmp("unequip/send_away", imgbase,
-                          SEND_AWAY_SIG_VA, k_send_away_sig,
-                          sizeof(k_send_away_sig), SEND_AWAY_PATCH_OFF,
-                          SEND_AWAY_RESUME_VA, &g_unequip_send_away_resume,
-                          (const void*)&send_away_shim);
+        g_unequip_send_away_resume = patch_va(SEND_AWAY_RESUME_VA);
+        ok &= patch_jmp6("unequip/send_away", SEND_AWAY_SIG_VA,
+                         k_send_away_sig, sizeof(k_send_away_sig),
+                         SEND_AWAY_PATCH_OFF, (const void*)&send_away_shim);
     } else {
-        logf_("unequip/send_away: disabled in ini");
+        patch_logf("unequip/send_away: disabled in ini");
     }
 
     if (opts->skip_prompt) {
-        ok &= install_jmp("unequip/prompt", imgbase,
-                          PROMPT_SIG_VA, k_prompt_sig,
-                          sizeof(k_prompt_sig), PROMPT_PATCH_OFF,
-                          PROMPT_RESUME_VA, &g_unequip_prompt_resume,
-                          (const void*)&prompt_shim);
+        g_unequip_prompt_resume = patch_va(PROMPT_RESUME_VA);
+        ok &= patch_jmp6("unequip/prompt", PROMPT_SIG_VA,
+                         k_prompt_sig, sizeof(k_prompt_sig),
+                         PROMPT_PATCH_OFF, (const void*)&prompt_shim);
     } else {
-        logf_("unequip/prompt: disabled in ini");
+        patch_logf("unequip/prompt: disabled in ini");
     }
     return ok;
 }

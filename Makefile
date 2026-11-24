@@ -16,11 +16,11 @@ WINDRESFLAGS := -DPAWNITEMS_VER_NUM=$(VER_NUM) '-DPAWNITEMS_VER_STR=\"$(VERSION)
 
 SRC_DIR := src
 TARGET  := pawnitems.dll
-SRC     := $(addprefix $(SRC_DIR)/,pawnitems.c unequip.c)
+SRC     := $(addprefix $(SRC_DIR)/,pawnitems.c patch.c unequip.c restrict.c)
 RES     := pawnitems.res.o
 
 # pawnitems.dll sits next to DDDA.exe / dinput8.dll and is loaded via
-# ddda-dinput8's [main] loadLibrary= line.
+# dinput8's [main] addons= line.
 DDDA_DIR := /home/istvan/.wine/drive_c/DDDA
 DEPLOY   := $(DDDA_DIR)/$(TARGET)
 

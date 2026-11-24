@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "unequip.h"
+#include "restrict.h"
 
 // Version definition (the Makefile passes the real one from VERSION)
 #ifndef PAWNITEMS_VERSION
@@ -12,6 +13,7 @@
 static char log_mode[32] = "truncate";
 static FILE* g_log_file = NULL;
 static struct unequip_opts g_unequip_opts = { 1, 1 };
+static struct restrict_opts g_restrict_opts = { 1, 1 };
 
 // Helper function to get module directory
 static void get_module_directory(char* buffer, size_t buffer_size) {
@@ -46,6 +48,11 @@ static void read_config(void) {
         GetPrivateProfileIntA("unequip", "keep_items", 1, config_path) != 0;
     g_unequip_opts.skip_prompt =
         GetPrivateProfileIntA("unequip", "skip_prompt", 1, config_path) != 0;
+
+    g_restrict_opts.equip =
+        GetPrivateProfileIntA("restrict", "allow_equip", 1, config_path) != 0;
+    g_restrict_opts.give =
+        GetPrivateProfileIntA("restrict", "allow_give", 1, config_path) != 0;
 }
 
 // Helper function to open log file
@@ -105,6 +112,11 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
             write_log("unequip: ready");
         else
             write_log("unequip: one or more patches NOT installed (see above)");
+
+        if (restrict_install(&g_restrict_opts, write_log))
+            write_log("restrict: ready");
+        else
+            write_log("restrict: one or more patches NOT installed (see above)");
         break;
         
     case DLL_PROCESS_DETACH:

@@ -16,7 +16,7 @@
  * Addresses are for the GOG build.  Each site is checked byte for byte
  * before it is patched, and nothing is patched if a check fails. */
 
-typedef void (*unequip_logfn)(const char *msg);
+#include "patch.h"
 
 struct unequip_opts {
     int keep_items;    /* install the send_away patch */
@@ -24,6 +24,6 @@ struct unequip_opts {
 };
 
 /* Returns 1 if every requested patch was installed, 0 otherwise. */
-int unequip_install(const struct unequip_opts *opts, unequip_logfn log);
+int unequip_install(const struct unequip_opts *opts, patch_logfn log);
 
 #endif
