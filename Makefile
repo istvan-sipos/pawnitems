@@ -21,7 +21,7 @@ RES     := pawnitems.res.o
 
 # pawnitems.dll sits next to DDDA.exe / dinput8.dll and is loaded via
 # ddda-dinput8's [main] loadLibrary= line.
-DDDA_DIR := /home/istvan/.steam/steam/steamapps/common/DDDA
+DDDA_DIR := /home/istvan/.wine/drive_c/DDDA
 DEPLOY   := $(DDDA_DIR)/$(TARGET)
 
 .PHONY: all clean deploy deploy-ini
