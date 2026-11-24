@@ -98,9 +98,6 @@ set it to 0 to turn that feature off.
 NOTES
 -----
 
-- An unequipped item ends up in the support pawn's inventory. Move it
-  to yourself or your main pawn before you dismiss the support pawn,
-  or it leaves with them.
 - A few specific items are blocked for support pawns by the game's
   vocation check rather than the rules above. pawnitems leaves those
   alone. dinput8's ignoreEquipVocation option lifts them along with
@@ -113,7 +110,7 @@ BUILDING
 The mod is plain C, built with the MinGW-w64 32-bit cross compiler.
 On Debian / Ubuntu:
 
-    sudo apt-get install gcc-mingw-w64-i686-win32 libz-mingw-w64-dev
+    sudo apt-get install gcc-mingw-w64-i686-win32
 
 Then, from the repository root:
 

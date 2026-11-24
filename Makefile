@@ -32,7 +32,7 @@ $(RES): $(SRC_DIR)/pawnitems.rc VERSION
 	$(WINDRES) $(WINDRESFLAGS) -i $(SRC_DIR)/pawnitems.rc -o $@
 
 $(TARGET): $(SRC) $(wildcard $(SRC_DIR)/*.h) $(RES) VERSION
-	$(CC) $(CFLAGS) -DPAWNITEMS_VERSION='"$(VERSION)"' $(LDFLAGS) -o $@ $(SRC) $(RES) -luser32 -lkernel32 -lversion -Wl,-Bstatic -lz -Wl,-Bdynamic
+	$(CC) $(CFLAGS) -DPAWNITEMS_VERSION='"$(VERSION)"' $(LDFLAGS) -o $@ $(SRC) $(RES) -luser32 -lkernel32 -lversion
 
 deploy: $(TARGET)
 	cp $(TARGET) "$(DEPLOY)"
