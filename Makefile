@@ -16,7 +16,7 @@ WINDRESFLAGS := -DPAWNITEMS_VER_NUM=$(VER_NUM) '-DPAWNITEMS_VER_STR=\"$(VERSION)
 
 SRC_DIR := src
 TARGET  := pawnitems.dll
-SRC     := $(addprefix $(SRC_DIR)/,pawnitems.c)
+SRC     := $(addprefix $(SRC_DIR)/,pawnitems.c unequip.c)
 RES     := pawnitems.res.o
 
 # pawnitems.dll sits next to DDDA.exe / dinput8.dll and is loaded via
@@ -31,7 +31,7 @@ all: deploy
 $(RES): $(SRC_DIR)/pawnitems.rc VERSION
 	$(WINDRES) $(WINDRESFLAGS) -i $(SRC_DIR)/pawnitems.rc -o $@
 
-$(TARGET): $(SRC) $(RES) VERSION
+$(TARGET): $(SRC) $(wildcard $(SRC_DIR)/*.h) $(RES) VERSION
 	$(CC) $(CFLAGS) -DPAWNITEMS_VERSION='"$(VERSION)"' $(LDFLAGS) -o $@ $(SRC) $(RES) -luser32 -lkernel32 -lversion -Wl,-Bstatic -lz -Wl,-Bdynamic
 
 deploy: $(TARGET)

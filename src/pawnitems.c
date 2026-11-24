@@ -1,13 +1,17 @@
 #include <windows.h>
 #include <stdio.h>
 #include <stdint.h>
+#include "unequip.h"
 
-// Version definition
-#define PAWNITEMS_VERSION "1.0.0"
+// Version definition (the Makefile passes the real one from VERSION)
+#ifndef PAWNITEMS_VERSION
+#define PAWNITEMS_VERSION "dev"
+#endif
 
 // Configuration values
 static char log_mode[32] = "truncate";
 static FILE* g_log_file = NULL;
+static struct unequip_opts g_unequip_opts = { 1, 1 };
 
 // Helper function to get module directory
 static void get_module_directory(char* buffer, size_t buffer_size) {
@@ -37,6 +41,11 @@ static void read_config(void) {
         strncpy_s(log_mode, sizeof(log_mode), buffer, sizeof(log_mode) - 1);
         log_mode[sizeof(log_mode) - 1] = '\0';
     }
+
+    g_unequip_opts.keep_items =
+        GetPrivateProfileIntA("unequip", "keep_items", 1, config_path) != 0;
+    g_unequip_opts.skip_prompt =
+        GetPrivateProfileIntA("unequip", "skip_prompt", 1, config_path) != 0;
 }
 
 // Helper function to open log file
@@ -90,7 +99,12 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
         open_log_file();
         
         // Write a log message when loaded
-        write_log("pawnitems.dll loaded successfully");
+        write_log("pawnitems.dll " PAWNITEMS_VERSION " loaded");
+
+        if (unequip_install(&g_unequip_opts, write_log))
+            write_log("unequip: ready");
+        else
+            write_log("unequip: one or more patches NOT installed (see above)");
         break;
         
     case DLL_PROCESS_DETACH:
