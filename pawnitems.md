@@ -24,3 +24,9 @@ Using Ghidra MCP server, we need to identify and patch functions that handle:
 4. Inventory management for pawn equipment
 
 This requires analyzing the game's pawn management code, particularly around inventory and equipment systems where these restrictions are implemented.
+
+## References
+
+~/repos/ddda-dinput8 : dinput8 mod, that implements Dll loading for the game
+~/repos/pawnlib-offline : a similar mod to this, some of it's machinery can be
+reused here (logging, detours)
