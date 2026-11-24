@@ -1,0 +1,4 @@
+*.log
+*.res.o
+build/
+pawnitems.dll
